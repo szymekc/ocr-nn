@@ -4,49 +4,50 @@ import tensorflow as tf
 import numpy as np
 import dataset
 import itertools
-from keras_preprocessing import sequence
+from tensorflow import keras
 from tensorflow.keras import layers
-
-from dataset import make_frames
-
-
-x = pickle.load(open('data_preprocessed.pkl', "rb"))
-y = pickle.load(open('labels.pkl', "rb"))
-characters = sorted(set(char for label in y for char in label), key=lambda s: sum(map(ord, s)))
+import matplotlib.pyplot as plt
 # Mapping characters to integers
-char_to_num = layers.experimental.preprocessing.StringLookup(
-    vocabulary=list(characters), num_oov_indices=0, mask_token=None
-)
+from preprocess import x_train, y_train, x_test, y_test, preprocess_sample_train, preprocess_sample_test, characters
 
-# Mapping integers back to original characters
-num_to_char = layers.experimental.preprocessing.StringLookup(
-    vocabulary=char_to_num.get_vocabulary(), mask_token=None, invert=True
-)
-
-
-x_train, y_train, x_test, y_test = dataset.split_dataset(x, y)
+batch_size = 8
 num_train = len(x_train)
 num_test = len(x_test)
 
+train_batches = tf.data.Dataset.from_generator(
+    preprocess_sample_train,
+    output_types=({"images": tf.float32, "labels": tf.int64}, tf.int64),
+).padded_batch(
+    batch_size,
+    padded_shapes=({'images': [None, 128, 128, 1], 'labels': [None]}, [None])
+)
+test_batches = tf.data.Dataset.from_generator(
+    preprocess_sample_test,
+    output_types=({"images": tf.float32, "labels": tf.int64}, tf.int64),
+).padded_batch(
+    batch_size,
+    padded_shapes=({'images': [None, 128, 128, 1], 'labels': [None]}, [None])
+)
 
-def train_gen():
-    for i in itertools.count(0):
-        yield make_frames(x_train[i]), char_to_num(tf.strings.unicode_split(y_train[i], input_encoding='UTF-8'))
+# _, ax = plt.subplots(8, 8, figsize=(20, 10))
+# for batch in x_train_batches.take(1):
+#     images = batch[0]
+#     labels = batch[1]
+#     label = tf.strings.reduce_join(num_to_char(labels[0])).numpy().decode("utf-8")
+#     for i in range(64):
+#         img = (images[1] * 255).numpy().astype("uint8")
+#         ax[i // 8, i % 8].imshow(img[i*3, :, :, 0].T, cmap="gray")
+#         ax[i // 8, i % 8].set_title(label)
+#         ax[i // 8, i % 8].axis("off")
+# plt.show()
 
+early_stopping_patience = 10
+# Add early stopping
+early_stopping = keras.callbacks.EarlyStopping(
+    monitor="val_loss", patience=early_stopping_patience, restore_best_weights=True
+)
 
-def test_gen():
-    for i in itertools.count(0):
-        yield make_frames(x_test[i]), char_to_num(tf.strings.unicode_split(y_test[i], input_encoding='UTF-8'))
-
-
-x_train_batches = tf.data.Dataset.from_generator(
-    train_gen,
-    (tf.float32, tf.int32)
-).padded_batch(32,
-               padded_shapes=([None, None, None, None], [None]),
-               padding_values=(None, -1))
-
-model = OcrModel(len(characters))
-history = model.model.fit(x_train_batches, batch_size=32, epochs=100)
+model = OcrModel(len(characters),batch_size)
+history = model.model.fit(train_batches, validation_data=test_batches, batch_size=batch_size, epochs=100, callbacks=[early_stopping])
 #results = model.model.evaluate(x=[x_test, y_test, x_test_len, y_test_len], batch_size=32)
 print('dupa')

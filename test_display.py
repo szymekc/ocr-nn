@@ -6,3 +6,4 @@ def show_image(label, image):
     cv2.imshow(label, image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+

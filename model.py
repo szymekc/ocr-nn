@@ -1,27 +1,25 @@
-import keras
 import tensorflow as tf
-from keras.models import Model
 from tensorflow.keras import layers
 from tensorflow.keras.layers import TimeDistributed
-from dataset import load_dataset
 
 
 class CTCLayer(layers.Layer):
     def __init__(self, name=None):
         super().__init__(name=name)
-        self.loss_fn = keras.backend.ctc_batch_cost
+        # self.loss_fn = keras.backend.ctc_batch_cost
+        self.loss_fn = tf.nn.ctc_loss
 
     def call(self, y_true, y_pred):
         # Compute the training-time loss value and add it
         # to the layer using `self.add_loss()`.
-        batch_len = tf.cast(tf.shape(y_true)[0], dtype="int32")
-        input_length = tf.cast(tf.shape(y_pred)[2], dtype="int32")
-        label_length = tf.cast(tf.shape(y_true)[1], dtype="int32")
+        batch_len = tf.cast(tf.shape(y_true)[0], dtype="int64")
+        input_length = tf.cast(tf.shape(y_pred)[1], dtype="int64")
+        label_length = tf.cast(tf.shape(y_true)[1], dtype="int64")
 
-        input_length = input_length * tf.ones(shape=(batch_len, 1), dtype="int32")
-        label_length = label_length * tf.ones(shape=(batch_len, 1), dtype="int32")
+        input_length = input_length * tf.ones(shape=(batch_len), dtype="int64")
+        label_length = label_length * tf.ones(shape=(batch_len), dtype="int64")
 
-        loss = self.loss_fn(y_true, y_pred, input_length, label_length)
+        loss = self.loss_fn(y_true, y_pred, input_length, label_length, logits_time_major=False)
         self.add_loss(loss)
 
         # At test time, just return the computed predictions
@@ -58,34 +56,40 @@ def cnn(inputs):
     x = TimeDistributed(layers.Dropout(0.2), name="drop1")(x)
     x = TimeDistributed(layers.BatchNormalization(), name="batch_norm3")(x)
 
-    x = TimeDistributed(layers.Conv2D(128, 3, activation='relu'), name="conv4")(x)
-    x = TimeDistributed(layers.Dropout(0.2), name="drop2")(x)
-    x = TimeDistributed(layers.BatchNormalization(), name="batch_norm4")(x)
-    x = layers.Flatten()(x)
-    out = layers.Dense(256, activation="relu")(x)
+    # x = TimeDistributed(layers.Conv2D(128, 3, activation='relu'), name="conv4")(x)
+    # x = TimeDistributed(layers.Dropout(0.2), name="drop2")(x)
+    # x = TimeDistributed(layers.BatchNormalization(), name="batch_norm4")(x)
+    out = TimeDistributed(layers.Flatten(), name="flatten")(x)
+    # out = TimeDistributed(layers.Dense(128, activation="relu"))(x)
     return out
 
 def rnn(inputs, charset_len):
-    x = layers.Bidirectional(layers.LSTM(128, return_sequences=True))(inputs)
-    x = layers.Bidirectional(layers.LSTM(128, return_sequences=True))(x)
+    x = layers.Bidirectional(layers.LSTM(64, return_sequences=True))(inputs)
+    x = layers.Bidirectional(layers.LSTM(64, return_sequences=True))(x)
 
-    x = layers.Dropout(0.5)(x)
+    # x = layers.Dropout(0.5)(x)
     out = layers.Dense(charset_len + 1, activation='softmax')(x)
     return out
 
+def tf_print(x):
+    tf.print("tensor:")
+    tf.print(x)
+    return x
 
 class OcrModel(object):
-    def __init__(self, charset_len):
-        inputs = layers.Input(shape=(200, 128, 128, 1), name="images_frames", dtype="float32", batch_size=32)
-        labels = layers.Input(shape=(None,), dtype="int32", name="labels")
+    def __init__(self, charset_len,batch_size):
+        inputs = layers.Input(shape=[None, 128, 128, 1], name="images", dtype="float32", batch_size=batch_size)
+        labels = layers.Input(shape=[None], dtype="int64", name="labels", batch_size=batch_size)
 
+
+        # dupa = layers.Lambda(tf_print)(inputs)
         cnn_out = cnn(inputs)
 
         rnn_out = rnn(cnn_out, charset_len)
-
+        # dupa1 = tf_print(labels)
         output = CTCLayer(name="ctc_loss")(labels, rnn_out)
 
-        opt = keras.optimizers.Adam(lr=0.001)
-        self.model = keras.models.Model(inputs=[inputs, labels], outputs=[output], name="ocr_nn_v1")
+        opt = tf.keras.optimizers.Adam(lr=0.001)
+        self.model = tf.keras.models.Model(inputs={"images": inputs, "labels": labels}, outputs=[output], name="ocr_nn_v1")
         print(self.model.summary(line_length=150))
         self.model.compile(opt)
