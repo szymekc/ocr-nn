@@ -1,8 +1,14 @@
-from preprocess import preprocess_all
+from preprocess import preprocess_all_data, split_dataset
 import pickle
 
+images = pickle.load(open("images.pkl", "rb"))
+labels = pickle.load(open("labels.pkl", "rb"))
 
-preprocessed_dataset = preprocess_all(data[0])
+preprocessed_x_train, preprocessed_y_train, preprocessed_x_val, preprocessed_y_val, preprocessed_x_test, preprocessed_y_test = split_dataset(*preprocess_all_data(images, labels))
 
-pickle.dump(preprocessed_dataset, open('data_preprocessed.pkl', 'wb'))
-pickle.dump(data[1], open('labels.pkl', 'wb'))
+pickle.dump(preprocessed_x_train, open('preprocessed_x_train.pkl', 'wb'))
+pickle.dump(preprocessed_y_train, open('preprocessed_y_train.pkl', 'wb'))
+pickle.dump(preprocessed_x_val, open('preprocessed_x_val.pkl', 'wb'))
+pickle.dump(preprocessed_y_val, open('preprocessed_y_val.pkl', 'wb'))
+pickle.dump(preprocessed_x_test, open('preprocessed_x_test.pkl', 'wb'))
+pickle.dump(preprocessed_y_test, open('preprocessed_y_test.pkl', 'wb'))

@@ -1,6 +1,6 @@
 numpy
 opencv-python
-tf-nightly-gpu
+tensorflow
 keras
 keras-ctcmodel
 matplotlib

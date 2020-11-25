@@ -27,11 +27,13 @@ def load_dataset(path):
     return images, labels
 
 
-def split_dataset(images, labels, split=0.9):
-    train_size = int(len(images) * split)
+def split_dataset(images, labels, split1=0.7, split2=0.85):
+    train_size = int(len(images) * split1)
+    val_size = int(len(images) * split2)
     x_train, y_train = images[:train_size], labels[:train_size]
-    x_test, y_test = images[train_size:], labels[train_size:]
-    return x_train, y_train, x_test, y_test
+    x_val, y_val = images[train_size:val_size], labels[train_size:val_size]
+    x_test, y_test = images[val_size:], labels[val_size:]
+    return x_train, y_train, x_val, y_val, x_test, y_test
 
 
 def conv_to_tf(images_train, labels_train, images_test, labels_test):
