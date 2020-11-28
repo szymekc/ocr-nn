@@ -6,7 +6,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from dataset import split_dataset
 import itertools
-
+import random
 
 images = pickle.load(open("images.pkl", "rb"))
 labels = pickle.load(open("labels.pkl", "rb"))
@@ -30,6 +30,10 @@ num_to_char = layers.experimental.preprocessing.StringLookup(
 )
 
 x_train, y_train, x_val, y_val, x_test, y_test = split_dataset(images, labels)
+# preprocessed_x_train = preprocessed_x_train[:100]
+# preprocessed_y_train = preprocessed_y_train[:100]
+# preprocessed_x_val = preprocessed_x_val[:10]
+# preprocessed_y_val = y_val[:10]
 
 
 def make_frames(image):
@@ -91,28 +95,36 @@ def preprocess_sample_test():
         yield {"images": image, "labels": label}, label
 
 def sample_train():
-    for i in range(len(preprocessed_x_train)):
-        image = preprocessed_x_train[i]
+    rand = list(zip(preprocessed_x_train, preprocessed_y_train))
+    random.shuffle(rand)
+    randx, randy = zip(*rand)
+    for i in range(len(randx)):
+        image = randx[i]
         image = make_frames(image)
-        label = preprocessed_y_train[i]
+        label = randy[i]
         yield {"images": image, "labels": label}, label
 
 
 def sample_val():
-    for i in range(len(preprocessed_x_val)):
-        image = preprocessed_x_val[i]
+    rand = list(zip(preprocessed_x_val, preprocessed_y_val))
+    random.shuffle(rand)
+    randx, randy = zip(*rand)
+    for i in range(len(randx)):
+        image = randx[i]
         image = make_frames(image)
-        label = preprocessed_y_val[i]
+        label = randy[i]
         yield {"images": image, "labels": label}, label
 
 
 def sample_test():
-    for i in range(len(preprocessed_x_test)):
-        image = preprocessed_x_test[i]
+    rand = list(zip(preprocessed_x_test, preprocessed_y_test))
+    random.shuffle(rand)
+    randx, randy = zip(*rand)
+    for i in range(len(randx)):
+        image = randx[i]
         image = make_frames(image)
-        label = preprocessed_y_test[i]
+        label = randy[i]
         yield {"images": image, "labels": label}, label
-
 
 def preprocess_all_data(images, labels):
     new_images = []
