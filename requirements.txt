@@ -2,5 +2,3 @@ numpy
 opencv-python
 tensorflow
 keras
-keras-ctcmodel
-matplotlib
